@@ -3,29 +3,26 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+venv/
+env/
+.env
+
+# Maps and data (exclude from git but will be generated on Heroku)
+maps/
+data/
 
 # Netlify build directory
 netlify_build/
 
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
 # Data and maps
-data/
-maps/
 examples/
 website/
 
@@ -33,21 +30,13 @@ website/
 .ipynb_checkpoints
 
 # Virtual Environment
-venv/
-env/
 ENV/
-
-# IDE specific files
-.idea/
-.vscode/
 *.swp
 *.swo
 
 # OS specific files
-.DS_Store
 .DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
-Thumbs.db 
+ehthumbs.db 

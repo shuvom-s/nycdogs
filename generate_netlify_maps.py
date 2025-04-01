@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Generate maps for the most popular dog breeds and names in NYC for Netlify deployment.
+Generate maps for dog breeds and names in NYC with at least 500 dogs.
 
 This script will:
 1. Ensure data exists by running preprocessing if necessary
-2. Generate maps for the top dog breeds and names in NYC
-3. Create a simple website for Netlify to display the maps
+2. Generate maps for all dog breeds and names with at least 500 dogs
+3. Create a simple website to display the maps
 """
 
 import os
@@ -37,9 +37,9 @@ def ensure_data_exists():
     
     print("Data files verified.")
 
-def generate_top_maps(top_n=10):
-    """Generate maps for the top N breeds and names"""
-    print(f"Generating maps for top {top_n} breeds and names...")
+def generate_maps_by_count(min_count=500):
+    """Generate maps for all breeds and names with at least min_count dogs"""
+    print(f"Generating maps for breeds and names with at least {min_count} dogs...")
     
     # Load the breed data
     with open("data/popular_breeds.json", "r") as f:
@@ -59,66 +59,49 @@ def generate_top_maps(top_n=10):
     # Get the NYC zipcode GeoJSON
     nyc_zipcodes = get_nyc_zipcode_geojson()
     
-    # Sort breeds and names by total count
-    sorted_breeds = sorted(breed_data.items(), key=lambda x: x[1].get('total_count', 0), reverse=True)
-    sorted_names = sorted(name_data.items(), key=lambda x: x[1].get('total_count', 0), reverse=True)
+    # Filter breeds by minimum count
+    filtered_breeds = {breed: info for breed, info in breed_data.items() 
+                      if info.get('total_count', 0) >= min_count}
     
-    # Generate maps for top breeds
+    # Filter names by minimum count
+    filtered_names = {name: info for name, info in name_data.items() 
+                     if info.get('total_count', 0) >= min_count}
+    
+    # Sort breeds and names by total count
+    sorted_breeds = sorted(filtered_breeds.items(), key=lambda x: x[1].get('total_count', 0), reverse=True)
+    sorted_names = sorted(filtered_names.items(), key=lambda x: x[1].get('total_count', 0), reverse=True)
+    
+    print(f"Found {len(sorted_breeds)} breeds and {len(sorted_names)} names with at least {min_count} dogs")
+    
+    # Generate maps for breeds
     print(f"Generating breed maps...")
-    for i, (breed, info) in enumerate(sorted_breeds[:top_n]):
-        print(f"Processing {i+1}/{top_n}: {breed}")
+    for i, (breed, info) in enumerate(sorted_breeds):
+        print(f"Processing {i+1}/{len(sorted_breeds)}: {breed}")
         create_breed_map(breed, info, nyc_zipcodes)
     
-    # Generate maps for top names
+    # Generate maps for names
     print(f"Generating name maps...")
-    for i, (name, info) in enumerate(sorted_names[:top_n]):
-        print(f"Processing {i+1}/{top_n}: {name}")
+    for i, (name, info) in enumerate(sorted_names):
+        print(f"Processing {i+1}/{len(sorted_names)}: {name}")
         create_name_map(name, info, nyc_zipcodes)
     
-    print(f"Generated {min(top_n, len(sorted_breeds))} breed maps and {min(top_n, len(sorted_names))} name maps")
+    print(f"Generated {len(sorted_breeds)} breed maps and {len(sorted_names)} name maps")
     
-    # Save the top breeds and names data for the website
-    top_breeds = {breed: info for breed, info in sorted_breeds[:top_n]}
-    top_names = {name: info for name, info in sorted_names[:top_n]}
+    # Save the filtered breeds and names data for the website
+    filtered_breeds_dict = {breed: info for breed, info in sorted_breeds}
+    filtered_names_dict = {name: info for name, info in sorted_names}
     
-    with open("maps/top_breeds.json", "w") as f:
-        json.dump(top_breeds, f)
+    with open("maps/filtered_breeds.json", "w") as f:
+        json.dump(filtered_breeds_dict, f)
     
-    with open("maps/top_names.json", "w") as f:
-        json.dump(top_names, f)
+    with open("maps/filtered_names.json", "w") as f:
+        json.dump(filtered_names_dict, f)
+    
+    return filtered_breeds_dict, filtered_names_dict
 
-def create_netlify_website():
-    """Generate HTML file for Netlify to display the maps"""
-    print("Creating Netlify website...")
-    
-    # Create the netlify_build directory if it doesn't exist
-    os.makedirs("netlify_build", exist_ok=True)
-    
-    # Create directories for maps in netlify_build
-    os.makedirs("netlify_build/maps/breeds", exist_ok=True)
-    os.makedirs("netlify_build/maps/names", exist_ok=True)
-    
-    # Copy all generated maps to netlify_build
-    for root, _, files in os.walk("maps"):
-        for file in files:
-            if file.endswith(".html") or file.endswith(".json"):
-                src_path = os.path.join(root, file)
-                # Create relative path for destination
-                rel_path = os.path.relpath(src_path, "maps")
-                dst_path = os.path.join("netlify_build/maps", rel_path)
-                
-                # Ensure destination directory exists
-                os.makedirs(os.path.dirname(dst_path), exist_ok=True)
-                
-                # Copy the file
-                shutil.copy2(src_path, dst_path)
-    
-    # Load top breed and name data
-    with open("maps/top_breeds.json", "r") as f:
-        top_breeds = json.load(f)
-    
-    with open("maps/top_names.json", "r") as f:
-        top_names = json.load(f)
+def create_website(filtered_breeds, filtered_names):
+    """Generate HTML file to display the maps"""
+    print("Creating website...")
     
     # Create HTML content
     html_content = """<!DOCTYPE html>
@@ -299,34 +282,34 @@ def create_netlify_website():
 """
     
     # Replace placeholders with actual data
-    html_content = html_content.replace('BREED_DATA_PLACEHOLDER', json.dumps(top_breeds))
-    html_content = html_content.replace('NAME_DATA_PLACEHOLDER', json.dumps(top_names))
+    html_content = html_content.replace('BREED_DATA_PLACEHOLDER', json.dumps(filtered_breeds))
+    html_content = html_content.replace('NAME_DATA_PLACEHOLDER', json.dumps(filtered_names))
     
     # Get the first breed and name to set default maps
-    first_breed = list(top_breeds.keys())[0].replace('/', '_').replace(' ', '_')
-    first_name = list(top_names.keys())[0].replace('/', '_').replace(' ', '_')
+    first_breed = list(filtered_breeds.keys())[0].replace('/', '_').replace(' ', '_')
+    first_name = list(filtered_names.keys())[0].replace('/', '_').replace(' ', '_')
     
     html_content = html_content.replace('FIRST_BREED_MAP.html', f"{first_breed}_map.html")
     html_content = html_content.replace('FIRST_NAME_MAP.html', f"{first_name}_map.html")
     
     # Write the HTML file
-    with open("netlify_build/index.html", "w") as f:
+    with open("index.html", "w") as f:
         f.write(html_content)
     
-    print("Created Netlify website in netlify_build/index.html")
+    print("Created website in index.html")
 
 def main():
     """Main function to run all steps"""
     # Step 1: Ensure data exists
     ensure_data_exists()
     
-    # Step 2: Generate maps for top breeds and names
-    generate_top_maps(top_n=10)
+    # Step 2: Generate maps for breeds and names with at least 500 dogs
+    filtered_breeds, filtered_names = generate_maps_by_count(min_count=500)
     
-    # Step 3: Create website for Netlify
-    create_netlify_website()
+    # Step 3: Create website
+    create_website(filtered_breeds, filtered_names)
     
-    print("Done! The Netlify build is ready in the 'netlify_build' directory.")
+    print("Done! The maps and website are ready.")
 
 if __name__ == "__main__":
     main() 

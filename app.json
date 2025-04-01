@@ -1,0 +1,24 @@
+{
+  "name": "NYC Dogs Map",
+  "description": "Interactive visualization of NYC dog breeds and names by zip code",
+  "repository": "https://github.com/shuvom-s/dogsofnyc",
+  "keywords": ["python", "folium", "geopandas", "data-visualization"],
+  "buildpacks": [
+    {
+      "url": "https://github.com/heroku/heroku-buildpack-apt"
+    },
+    {
+      "url": "https://github.com/heroku/heroku-geo-buildpack.git"
+    },
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "environments": {
+    "test": {
+      "scripts": {
+        "test": "python -c \"import geopandas; print('GeoSpatial libraries installed successfully!')\""
+      }
+    }
+  }
+} 
