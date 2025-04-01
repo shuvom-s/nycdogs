@@ -5,8 +5,6 @@ echo "Starting Netlify build process..."
 
 # Create netlify_build directory
 mkdir -p netlify_build
-mkdir -p netlify_build/maps/breeds
-mkdir -p netlify_build/maps/names
 
 # Create a simple HTML file with instructions and explanation
 cat > netlify_build/index.html << 'EOF'

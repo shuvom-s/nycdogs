@@ -8,6 +8,6 @@
   },
   "private": true,
   "scripts": {
-    "build": "python netlify_build.py"
+    "build": "./build.sh"
   }
 } 
