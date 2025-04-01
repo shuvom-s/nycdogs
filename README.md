@@ -103,4 +103,8 @@ python build_netlify.py
 
 ## Deployment
 
-See `NETLIFY_DEPLOYMENT.md` for detailed instructions on deploying this application to Netlify. 
+See `NETLIFY_DEPLOYMENT.md` for detailed instructions on deploying this application to Netlify.
+
+### Netlify Deployment Status
+
+The deployed version on Netlify is a simplified landing page that links back to this repository. Due to the large dataset requirements, the full interactive application needs to be run locally by following the setup instructions above. 

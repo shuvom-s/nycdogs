@@ -1,0 +1,6 @@
+[build]
+  command = "python netlify_build.py"
+  publish = "netlify_build"
+
+[build.environment]
+  PYTHON_VERSION = "3.9" 
