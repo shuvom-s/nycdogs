@@ -1,110 +1,38 @@
-# NYC Dogs Dataset Explorer
+# NYC Dogs Map
 
-This project visualizes the geographic distribution of dog breeds and names across NYC zip codes based on the nycdogs.csv dataset.
+Interactive visualization of NYC dog breeds and names by zip code, showing the geographic distribution of different dog breeds and names across New York City neighborhoods.
 
 ## Features
 
-- Deduplicate the NYC dogs dataset
-- Generate bar charts showing the top zip codes for each breed and name
-- Create choropleth maps with NYC zip code boundaries colored by dog distribution
-- Interactive web interface to explore distributions
-- Flask web application for local viewing
-- Netlify deployment option for sharing on the web
+- Choropleth maps for popular dog breeds in NYC
+- Choropleth maps for popular dog names in NYC
+- Interactive selection of breeds and names
+- Tooltips showing details on hover
+- Filtering for dogs with at least 500 occurrences in the dataset
 
-## Requirements
+## Data Source
 
-- Python 3.6+
-- pandas
-- matplotlib
-- seaborn
-- folium
-- geopandas
-- requests
-- flask (for web app)
+This visualization uses data from the [NYC Dog Licensing Dataset](https://data.cityofnewyork.us/Health/NYC-Dog-Licensing-Dataset/nu7n-tubp).
 
-## Setup
+## How It Works
 
-1. Install the required packages:
+The visualization uses:
+- Python for data processing
+- GeoPandas for working with geospatial data
+- Folium (based on Leaflet.js) for interactive maps
+- Bootstrap for the user interface
 
-```bash
-pip install -r requirements.txt
-```
+GitHub Actions automatically generates the maps when changes are pushed to the repository.
 
-2. Make sure your `nycdogs.csv` file is in the root directory
+## Running Locally
 
-3. Run the preprocessing script:
+To run this project locally:
 
-```bash
-python preprocess_data.py
-```
+1. Clone the repository
+2. Install dependencies: `pip install -r requirements.txt`
+3. Run the map generation script: `python generate_netlify_maps.py`
+4. Open `index.html` in your browser
 
-This will:
-- Load the dataset
-- Remove duplicates
-- Save a deduplicated version to `data/nycdogs_unique.csv`
-- Create example bar chart visualizations in `examples/` directory
+## Live Demo
 
-4. Create choropleth maps and web interface:
-
-```bash
-python create_heatmaps.py
-```
-
-This will:
-- Use the NYC zip code boundary data from ZCTA.gpkg
-- Generate choropleth maps for popular dog breeds in `maps/breeds/`
-- Generate choropleth maps for popular dog names in `maps/names/`
-- Create a web interface in `website/index.html`
-
-5. Alternatively, run everything at once:
-
-```bash
-python run.py
-```
-
-## Usage Options
-
-### Option 1: Static HTML
-
-1. Open `website/index.html` in a web browser
-2. Select a breed or name from the dropdown to see its geographic distribution
-3. Explore different breeds and names to compare distributions
-
-### Option 2: Flask Web App
-
-1. Run the Flask application:
-
-```bash
-python app.py
-```
-
-2. Open a web browser and navigate to `http://localhost:5000`
-3. If data hasn't been processed yet, you'll be prompted to process it
-4. Select breeds and names from the dropdowns to see their distributions
-
-### Option 3: Deploy to Netlify
-
-To deploy the application to the web using Netlify:
-
-1. Run the build script to generate a static site:
-
-```bash
-python build_netlify.py
-```
-
-2. Follow the deployment instructions in `NETLIFY_DEPLOYMENT.md`
-
-## Data Notes
-
-- Only breeds and names with at least 100 dogs are included
-- The deduplicated dataset is used for all analyses
-- Example bar chart visualizations are saved in the `examples/` directory
-- Choropleth maps showing the percentage distribution are saved in the `maps/` directory
-
-## Deployment
-
-See `NETLIFY_DEPLOYMENT.md` for detailed instructions on deploying this application to Netlify.
-
-### Netlify Deployment Status
-
-The deployed version on Netlify is a simplified landing page that links back to this repository. Due to the large dataset requirements, the full interactive application needs to be run locally by following the setup instructions above. 
+Visit the [NYC Dogs Map](https://shuvom-s.github.io/dogsofnyc/) to see the interactive visualization. 

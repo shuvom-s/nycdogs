@@ -7,10 +7,6 @@ venv/
 env/
 .env
 
-# Maps and data (exclude from git but will be generated on Heroku)
-maps/
-data/
-
 # Netlify build directory
 netlify_build/
 
@@ -22,7 +18,7 @@ netlify_build/
 .DS_Store
 Thumbs.db
 
-# Data and maps
+# Example generated files
 examples/
 website/
 
