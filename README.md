@@ -1,110 +1,95 @@
-# NYC Dogs Dataset Explorer
+# NYC Dogs Map
 
-This project visualizes the geographic distribution of dog breeds and names across NYC zip codes based on the nycdogs.csv dataset.
+Interactive visualization of NYC dog breeds and names by zip code, showing the geographic distribution of different dog breeds and names across New York City neighborhoods.
 
 ## Features
 
-- Deduplicate the NYC dogs dataset
-- Generate bar charts showing the top zip codes for each breed and name
-- Create choropleth maps with NYC zip code boundaries colored by dog distribution
-- Interactive web interface to explore distributions
-- Flask web application for local viewing
-- Netlify deployment option for sharing on the web
+- Choropleth maps for popular dog breeds in NYC
+- Choropleth maps for popular dog names in NYC
+- Interactive selection of breeds and names
+- Tooltips showing details on hover
+- Filtering for dogs with at least 500 occurrences in the dataset
 
-## Requirements
+## Data Source
 
-- Python 3.6+
-- pandas
-- matplotlib
-- seaborn
-- folium
-- geopandas
-- requests
-- flask (for web app)
+This visualization uses data from the [NYC Dog Licensing Dataset](https://data.cityofnewyork.us/Health/NYC-Dog-Licensing-Dataset/nu7n-tubp).
 
-## Setup
+## How It Works
 
-1. Install the required packages:
+The visualization uses:
+- Python for data processing
+- GeoPandas for working with geospatial data
+- Folium (based on Leaflet.js) for interactive maps
+- Bootstrap for the user interface
 
+## Running Locally
+
+### Prerequisites
+
+1. Python 3.8 or newer
+2. Required data files:
+   - `nycdogs.csv` - The NYC Dog Licensing Dataset
+   - `ZCTA.gpkg` - NYC ZIP Code Tabulation Areas shapefile
+
+### Option 1: Using the isolated environment scripts (recommended)
+
+To avoid package compatibility issues, we've provided scripts that run the app in an isolated virtual environment:
+
+**On Linux/Mac:**
 ```bash
-pip install -r requirements.txt
+# Make the script executable
+chmod +x run_isolated.sh
+
+# Run the app
+./run_isolated.sh
 ```
 
-2. Make sure your `nycdogs.csv` file is in the root directory
-
-3. Run the preprocessing script:
-
-```bash
-python preprocess_data.py
+**On Windows:**
+```
+run_isolated.bat
 ```
 
-This will:
-- Load the dataset
-- Remove duplicates
-- Save a deduplicated version to `data/nycdogs_unique.csv`
-- Create example bar chart visualizations in `examples/` directory
+These scripts will:
+1. Create a virtual environment specifically for this project
+2. Install the required dependencies with compatible versions
+3. Check if the required data files exist
+4. Create necessary directories
+5. Start the Flask development server
 
-4. Create choropleth maps and web interface:
+### Option 2: Manual setup
 
-```bash
-python create_heatmaps.py
-```
+If you prefer to set up manually:
 
-This will:
-- Use the NYC zip code boundary data from ZCTA.gpkg
-- Generate choropleth maps for popular dog breeds in `maps/breeds/`
-- Generate choropleth maps for popular dog names in `maps/names/`
-- Create a web interface in `website/index.html`
+1. Create and activate a virtual environment:
+   ```bash
+   # On Linux/Mac
+   python -m venv dogs_env
+   source dogs_env/bin/activate
+   
+   # On Windows
+   python -m venv dogs_env
+   dogs_env\Scripts\activate
+   ```
 
-5. Alternatively, run everything at once:
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-```bash
-python run.py
-```
+3. Run the Flask app:
+   ```bash
+   python app.py
+   ```
 
-## Usage Options
+### Using the App
 
-### Option 1: Static HTML
+Once the server is running, open your browser to: http://localhost:5000
 
-1. Open `website/index.html` in a web browser
-2. Select a breed or name from the dropdown to see its geographic distribution
-3. Explore different breeds and names to compare distributions
+The interface allows you to:
+1. Select dog breeds to see their distribution across NYC zip codes
+2. Select dog names to see their distribution across NYC zip codes
+3. View detailed statistics when hovering over each zip code
 
-### Option 2: Flask Web App
+## Live Demo
 
-1. Run the Flask application:
-
-```bash
-python app.py
-```
-
-2. Open a web browser and navigate to `http://localhost:5000`
-3. If data hasn't been processed yet, you'll be prompted to process it
-4. Select breeds and names from the dropdowns to see their distributions
-
-### Option 3: Deploy to Netlify
-
-To deploy the application to the web using Netlify:
-
-1. Run the build script to generate a static site:
-
-```bash
-python build_netlify.py
-```
-
-2. Follow the deployment instructions in `NETLIFY_DEPLOYMENT.md`
-
-## Data Notes
-
-- Only breeds and names with at least 100 dogs are included
-- The deduplicated dataset is used for all analyses
-- Example bar chart visualizations are saved in the `examples/` directory
-- Choropleth maps showing the percentage distribution are saved in the `maps/` directory
-
-## Deployment
-
-See `NETLIFY_DEPLOYMENT.md` for detailed instructions on deploying this application to Netlify.
-
-### Netlify Deployment Status
-
-The deployed version on Netlify is a simplified landing page that links back to this repository. Due to the large dataset requirements, the full interactive application needs to be run locally by following the setup instructions above. 
+Visit the [NYC Dogs Map](https://shuvom-s.github.io/nycdogs/) to see the interactive visualization. 
