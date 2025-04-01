@@ -1,24 +1,11 @@
-#!/usr/bin/env python
-"""
-Simplified build script for Netlify deployment.
-This script creates a static website with placeholder content
-that can be deployed on Netlify without requiring large data files.
-"""
+#!/bin/bash
 
-import os
+# Create netlify_build directory
+mkdir -p netlify_build
 
-def build_static_site():
-    print("Building NYC Dogs Static Site for Netlify")
-    
-    # Create output directory for Netlify
-    netlify_dir = 'netlify_build'
-    os.makedirs(netlify_dir, exist_ok=True)
-    
-    # Create index.html for Netlify
-    print("Creating static HTML files...")
-    
-    with open(f'{netlify_dir}/index.html', 'w') as f:
-        f.write("""<!DOCTYPE html>
+# Create a simple HTML file
+cat > netlify_build/index.html << 'EOF'
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -112,9 +99,7 @@ def build_static_site():
         </div>
     </div>
 </body>
-</html>""")
-    
-    print("Static site built successfully!")
+</html>
+EOF
 
-if __name__ == "__main__":
-    build_static_site() 
+echo "Static site built successfully!" 

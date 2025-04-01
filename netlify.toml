@@ -1,6 +1,8 @@
 [build]
-  command = "python netlify_build.py"
+  command = "./build.sh"
   publish = "netlify_build"
 
 [build.environment]
-  PYTHON_VERSION = "3.8" 
+  PYTHON_VERSION = "3.8"
+  PYTHON_RUNTIME = "3.8"
+  PIP_DISABLE_PIP_VERSION_CHECK = "1" 
