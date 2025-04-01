@@ -1,3 +1,31 @@
+import sys
+import pkg_resources
+
+# Check for compatible package versions before importing them
+def check_compatibility():
+    required_packages = {
+        'Flask': '2.2.3',
+        'Werkzeug': '2.2.3'
+    }
+    
+    for package, version in required_packages.items():
+        try:
+            installed = pkg_resources.get_distribution(package).version
+            if installed != version:
+                print(f"Warning: {package} version mismatch. Required: {version}, Installed: {installed}")
+                print(f"This may cause errors. Try running: pip install {package}=={version}")
+        except pkg_resources.DistributionNotFound:
+            print(f"Error: {package} is not installed. Try running: pip install {package}=={version}")
+            return False
+    return True
+
+# Run compatibility check
+if not check_compatibility():
+    print("Please fix package version issues before continuing.")
+    print("You can run: python setup_local.py to set up the correct environment.")
+    sys.exit(1)
+
+# Import Flask only after compatibility check
 from flask import Flask, render_template, redirect, url_for, send_from_directory
 import os
 import json
@@ -66,4 +94,6 @@ if __name__ == '__main__':
     os.makedirs('maps/breeds', exist_ok=True)
     os.makedirs('maps/names', exist_ok=True)
     
+    print("Starting Flask development server...")
+    print("You can view the app at: http://localhost:5000")
     app.run(debug=True, host='0.0.0.0', port=5000) 
