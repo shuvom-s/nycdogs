@@ -87,7 +87,7 @@ def build_static_site():
             <div class="card-body">
                 <p>To run the full interactive version:</p>
                 <ol>
-                    <li>Clone the repository: <code>git clone https://github.com/YOUR_USERNAME/nyc-dogs-map.git</code></li>
+                    <li>Clone the repository: <code>git clone https://github.com/shuvom/nyc-dogs-map.git</code></li>
                     <li>Install dependencies: <code>pip install -r requirements.txt</code></li>
                     <li>Make sure the nycdogs.csv and ZCTA.gpkg files are in the root directory</li>
                     <li>Run the Flask app: <code>python app.py</code></li>
@@ -111,7 +111,7 @@ def build_static_site():
         </div>
         
         <div class="text-center mt-4">
-            <a href="https://github.com/YOUR_USERNAME/nyc-dogs-map" class="btn btn-primary btn-lg">View on GitHub</a>
+            <a href="https://github.com/shuvom/nyc-dogs-map" class="btn btn-primary btn-lg">View on GitHub</a>
         </div>
     </div>
 </body>
