@@ -236,8 +236,8 @@ def create_breed_choropleth_maps():
             tooltip_fields.append('neighborhood')
             tooltip_aliases.append('Neighborhood:')
         
-        # Add tooltips to show data on hover
-        tooltip = GeoJsonTooltip(
+        # Add tooltips to show data on hover with a zipcode link
+        tooltip = folium.GeoJsonTooltip(
             fields=tooltip_fields,
             aliases=tooltip_aliases,
             localize=True,
@@ -251,89 +251,25 @@ def create_breed_choropleth_maps():
             """,
         )
         
-        # Generate JavaScript code for zipcode click handling
-        zipcode_click_js = """
-        function onEachFeature(feature, layer) {
-            var zipcode = feature.properties.%s;
-            layer.on({
-                click: function(e) {
-                    showZipcodeStats(zipcode);
-                }
-            });
-        }
+        # Add a simple popup with a button for each zipcode
+        popup = folium.GeoJsonPopup(
+            fields=[zipcode_field],
+            aliases=[''],
+            localize=True,
+            labels=False,
+            style='display:none;',  # Hide the zipcode text
+            html=f"""
+            <div style="text-align:center;">
+                <button class="btn btn-primary btn-sm" 
+                  onclick="window.parent.showZipcodeStats(this.getAttribute('data-zipcode'))" 
+                  data-zipcode="{{{zipcode_field}}}">
+                    View Statistics for ZIP {{{zipcode_field}}}
+                </button>
+            </div>
+            """
+        )
         
-        function showZipcodeStats(zipcode) {
-            // Create modal content for zipcode statistics
-            var modalContent = document.getElementById('zipcodeModalContent');
-            modalContent.innerHTML = '<div class="text-center"><h4>Loading data for ZIP Code ' + zipcode + '...</h4><div class="spinner-border" role="status"></div></div>';
-            
-            // Show the modal
-            var zipcodeModal = new bootstrap.Modal(document.getElementById('zipcodeModal'));
-            zipcodeModal.show();
-            
-            // Fetch zipcode statistics
-            fetch('/api/zipcode/' + zipcode)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        modalContent.innerHTML = '<div class="alert alert-warning">No detailed data available for this ZIP code.</div>';
-                        return;
-                    }
-                    
-                    // Create content for the modal
-                    var content = '<h4 class="mb-3">ZIP Code ' + zipcode + '</h4>';
-                    content += '<p><strong>Total Dogs:</strong> ' + data.total_dogs + '</p>';
-                    
-                    // Show top breeds
-                    if (data.top_breeds && data.top_breeds.length > 0) {
-                        content += '<h5 class="mt-4">Most Overrepresented Breeds</h5>';
-                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
-                        content += '<thead><tr><th>Breed</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
-                        content += '<tbody>';
-                        
-                        data.top_breeds.forEach(function(breed) {
-                            content += '<tr>';
-                            content += '<td>' + breed.breed + '</td>';
-                            content += '<td>' + breed.count + '</td>';
-                            content += '<td>' + (breed.percentage * 100).toFixed(1) + '%</td>';
-                            content += '<td>' + breed.representation.toFixed(1) + 'x</td>';
-                            content += '</tr>';
-                        });
-                        
-                        content += '</tbody></table></div>';
-                    }
-                    
-                    // Show top names
-                    if (data.top_names && data.top_names.length > 0) {
-                        content += '<h5 class="mt-4">Most Overrepresented Names</h5>';
-                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
-                        content += '<thead><tr><th>Name</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
-                        content += '<tbody>';
-                        
-                        data.top_names.forEach(function(name) {
-                            content += '<tr>';
-                            content += '<td>' + name.name + '</td>';
-                            content += '<td>' + name.count + '</td>';
-                            content += '<td>' + (name.percentage * 100).toFixed(1) + '%</td>';
-                            content += '<td>' + name.representation.toFixed(1) + 'x</td>';
-                            content += '</tr>';
-                        });
-                        
-                        content += '</tbody></table></div>';
-                    }
-                    
-                    modalContent.innerHTML = content;
-                })
-                .catch(error => {
-                    modalContent.innerHTML = '<div class="alert alert-danger">Error loading data: ' + error.message + '</div>';
-                });
-        }
-        """ % zipcode_field
-        
-        # Add the JavaScript code to the map
-        nyc_map.get_root().script.add_child(folium.Element(zipcode_click_js))
-        
-        # Add GeoJSON layer with tooltips and click events
+        # Add GeoJSON layer with tooltips
         geojson = folium.GeoJson(
             nyc_zipcodes,
             name='NYC Zipcodes',
@@ -343,9 +279,90 @@ def create_breed_choropleth_maps():
                 'color': 'black',
                 'weight': 1
             },
-            # Add the click handler function
-            onEachFeature="""onEachFeature"""
+            highlight_function=lambda feature: {
+                'weight': 3,
+                'color': 'blue',
+                'fillOpacity': 0.2
+            },
+            overlay=True,
+            popup=popup
         ).add_to(nyc_map)
+        
+        # Add a click handler using JavaScript instead
+        folium.Element(f"""
+            <script>
+                // Define a global showZipcodeStats function if not already defined
+                window.showZipcodeStats = function(zipcode) {{
+                    console.log('Showing stats for zipcode: ' + zipcode);
+                    
+                    // Try to call parent window's function if in iframe
+                    if (window.parent && window.parent !== window && typeof window.parent.showZipcodeStats === 'function') {{
+                        window.parent.showZipcodeStats(zipcode);
+                        return;
+                    }}
+                    
+                    // Otherwise show modal directly if modal exists
+                    var modal = document.getElementById('zipcodeModal');
+                    if (modal) {{
+                        var modalTitle = document.querySelector('#zipcodeModal .modal-title');
+                        var modalContent = document.querySelector('#zipcodeModal #zipcodeModalContent');
+                        
+                        if (modalTitle) modalTitle.textContent = 'ZIP Code ' + zipcode + ' Dog Statistics';
+                        if (modalContent) modalContent.innerHTML = '<div class="text-center"><h4>Loading data for ZIP Code ' + zipcode + '...</h4><div class="spinner-border" role="status"></div></div>';
+                        
+                        var bsModal = new bootstrap.Modal(modal);
+                        bsModal.show();
+                        
+                        // This would normally fetch data, but for standalone maps we just show a message
+                        setTimeout(function() {{
+                            if (modalContent) {{
+                                modalContent.innerHTML = '<div class="alert alert-info">To view detailed statistics, please use the app from the main page where API access is available.</div>';
+                            }}
+                        }}, 1500);
+                    }} else {{
+                        alert('Statistics for ZIP code ' + zipcode + ' are available in the main application.');
+                    }}
+                }};
+                
+                // Add click handlers to each zipcode polygon
+                document.addEventListener('DOMContentLoaded', function() {{
+                    // Wait a moment for the map to fully initialize
+                    setTimeout(function() {{
+                        // Find all leaflet path elements (polygons) 
+                        var paths = document.querySelectorAll('path.leaflet-interactive');
+                        
+                        paths.forEach(function(path) {{
+                            path.addEventListener('click', function(e) {{
+                                // Find the containing element with data attributes
+                                var element = e.target.closest('[data-zipcode]') || e.target;
+                                var zipcode = element.getAttribute('data-zipcode');
+                                
+                                // If no zipcode attribute, try to get it from the popup content
+                                if (!zipcode) {{
+                                    var popups = document.querySelectorAll('.leaflet-popup-content button[data-zipcode]');
+                                    if (popups.length > 0) {{
+                                        zipcode = popups[0].getAttribute('data-zipcode');
+                                    }}
+                                }}
+                                
+                                if (zipcode) {{
+                                    // Call the zipcode stats function
+                                    try {{
+                                        if (window.parent && window.parent.showZipcodeStats) {{
+                                            window.parent.showZipcodeStats(zipcode);
+                                        }} else if (window.showZipcodeStats) {{
+                                            window.showZipcodeStats(zipcode);
+                                        }}
+                                    }} catch (e) {{
+                                        console.error('Error showing zipcode stats: ' + e);
+                                    }}
+                                }}
+                            }});
+                        }});
+                    }}, 1000);
+                }});
+            </script>
+        """).add_to(nyc_map.get_root())
         
         # Add a title
         title_html = f'''
@@ -551,8 +568,8 @@ def create_name_choropleth_maps():
             tooltip_fields.append('neighborhood')
             tooltip_aliases.append('Neighborhood:')
         
-        # Add tooltips to show data on hover
-        tooltip = GeoJsonTooltip(
+        # Add tooltips to show data on hover with a zipcode link
+        tooltip = folium.GeoJsonTooltip(
             fields=tooltip_fields,
             aliases=tooltip_aliases,
             localize=True,
@@ -566,89 +583,25 @@ def create_name_choropleth_maps():
             """,
         )
         
-        # Generate JavaScript code for zipcode click handling
-        zipcode_click_js = """
-        function onEachFeature(feature, layer) {
-            var zipcode = feature.properties.%s;
-            layer.on({
-                click: function(e) {
-                    showZipcodeStats(zipcode);
-                }
-            });
-        }
+        # Add a simple popup with a button for each zipcode
+        popup = folium.GeoJsonPopup(
+            fields=[zipcode_field],
+            aliases=[''],
+            localize=True,
+            labels=False,
+            style='display:none;',  # Hide the zipcode text
+            html=f"""
+            <div style="text-align:center;">
+                <button class="btn btn-primary btn-sm" 
+                  onclick="window.parent.showZipcodeStats(this.getAttribute('data-zipcode'))" 
+                  data-zipcode="{{{zipcode_field}}}">
+                    View Statistics for ZIP {{{zipcode_field}}}
+                </button>
+            </div>
+            """
+        )
         
-        function showZipcodeStats(zipcode) {
-            // Create modal content for zipcode statistics
-            var modalContent = document.getElementById('zipcodeModalContent');
-            modalContent.innerHTML = '<div class="text-center"><h4>Loading data for ZIP Code ' + zipcode + '...</h4><div class="spinner-border" role="status"></div></div>';
-            
-            // Show the modal
-            var zipcodeModal = new bootstrap.Modal(document.getElementById('zipcodeModal'));
-            zipcodeModal.show();
-            
-            // Fetch zipcode statistics
-            fetch('/api/zipcode/' + zipcode)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        modalContent.innerHTML = '<div class="alert alert-warning">No detailed data available for this ZIP code.</div>';
-                        return;
-                    }
-                    
-                    // Create content for the modal
-                    var content = '<h4 class="mb-3">ZIP Code ' + zipcode + '</h4>';
-                    content += '<p><strong>Total Dogs:</strong> ' + data.total_dogs + '</p>';
-                    
-                    // Show top breeds
-                    if (data.top_breeds && data.top_breeds.length > 0) {
-                        content += '<h5 class="mt-4">Most Overrepresented Breeds</h5>';
-                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
-                        content += '<thead><tr><th>Breed</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
-                        content += '<tbody>';
-                        
-                        data.top_breeds.forEach(function(breed) {
-                            content += '<tr>';
-                            content += '<td>' + breed.breed + '</td>';
-                            content += '<td>' + breed.count + '</td>';
-                            content += '<td>' + (breed.percentage * 100).toFixed(1) + '%</td>';
-                            content += '<td>' + breed.representation.toFixed(1) + 'x</td>';
-                            content += '</tr>';
-                        });
-                        
-                        content += '</tbody></table></div>';
-                    }
-                    
-                    // Show top names
-                    if (data.top_names && data.top_names.length > 0) {
-                        content += '<h5 class="mt-4">Most Overrepresented Names</h5>';
-                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
-                        content += '<thead><tr><th>Name</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
-                        content += '<tbody>';
-                        
-                        data.top_names.forEach(function(name) {
-                            content += '<tr>';
-                            content += '<td>' + name.name + '</td>';
-                            content += '<td>' + name.count + '</td>';
-                            content += '<td>' + (name.percentage * 100).toFixed(1) + '%</td>';
-                            content += '<td>' + name.representation.toFixed(1) + 'x</td>';
-                            content += '</tr>';
-                        });
-                        
-                        content += '</tbody></table></div>';
-                    }
-                    
-                    modalContent.innerHTML = content;
-                })
-                .catch(error => {
-                    modalContent.innerHTML = '<div class="alert alert-danger">Error loading data: ' + error.message + '</div>';
-                });
-        }
-        """ % zipcode_field
-        
-        # Add the JavaScript code to the map
-        nyc_map.get_root().script.add_child(folium.Element(zipcode_click_js))
-        
-        # Add GeoJSON layer with tooltips and click events
+        # Add GeoJSON layer with tooltips
         geojson = folium.GeoJson(
             nyc_zipcodes,
             name='NYC Zipcodes',
@@ -658,9 +611,90 @@ def create_name_choropleth_maps():
                 'color': 'black',
                 'weight': 1
             },
-            # Add the click handler function
-            onEachFeature="""onEachFeature"""
+            highlight_function=lambda feature: {
+                'weight': 3,
+                'color': 'blue',
+                'fillOpacity': 0.2
+            },
+            overlay=True,
+            popup=popup
         ).add_to(nyc_map)
+        
+        # Add a click handler using JavaScript instead
+        folium.Element(f"""
+            <script>
+                // Define a global showZipcodeStats function if not already defined
+                window.showZipcodeStats = function(zipcode) {{
+                    console.log('Showing stats for zipcode: ' + zipcode);
+                    
+                    // Try to call parent window's function if in iframe
+                    if (window.parent && window.parent !== window && typeof window.parent.showZipcodeStats === 'function') {{
+                        window.parent.showZipcodeStats(zipcode);
+                        return;
+                    }}
+                    
+                    // Otherwise show modal directly if modal exists
+                    var modal = document.getElementById('zipcodeModal');
+                    if (modal) {{
+                        var modalTitle = document.querySelector('#zipcodeModal .modal-title');
+                        var modalContent = document.querySelector('#zipcodeModal #zipcodeModalContent');
+                        
+                        if (modalTitle) modalTitle.textContent = 'ZIP Code ' + zipcode + ' Dog Statistics';
+                        if (modalContent) modalContent.innerHTML = '<div class="text-center"><h4>Loading data for ZIP Code ' + zipcode + '...</h4><div class="spinner-border" role="status"></div></div>';
+                        
+                        var bsModal = new bootstrap.Modal(modal);
+                        bsModal.show();
+                        
+                        // This would normally fetch data, but for standalone maps we just show a message
+                        setTimeout(function() {{
+                            if (modalContent) {{
+                                modalContent.innerHTML = '<div class="alert alert-info">To view detailed statistics, please use the app from the main page where API access is available.</div>';
+                            }}
+                        }}, 1500);
+                    }} else {{
+                        alert('Statistics for ZIP code ' + zipcode + ' are available in the main application.');
+                    }}
+                }};
+                
+                // Add click handlers to each zipcode polygon
+                document.addEventListener('DOMContentLoaded', function() {{
+                    // Wait a moment for the map to fully initialize
+                    setTimeout(function() {{
+                        // Find all leaflet path elements (polygons) 
+                        var paths = document.querySelectorAll('path.leaflet-interactive');
+                        
+                        paths.forEach(function(path) {{
+                            path.addEventListener('click', function(e) {{
+                                // Find the containing element with data attributes
+                                var element = e.target.closest('[data-zipcode]') || e.target;
+                                var zipcode = element.getAttribute('data-zipcode');
+                                
+                                // If no zipcode attribute, try to get it from the popup content
+                                if (!zipcode) {{
+                                    var popups = document.querySelectorAll('.leaflet-popup-content button[data-zipcode]');
+                                    if (popups.length > 0) {{
+                                        zipcode = popups[0].getAttribute('data-zipcode');
+                                    }}
+                                }}
+                                
+                                if (zipcode) {{
+                                    // Call the zipcode stats function
+                                    try {{
+                                        if (window.parent && window.parent.showZipcodeStats) {{
+                                            window.parent.showZipcodeStats(zipcode);
+                                        }} else if (window.showZipcodeStats) {{
+                                            window.showZipcodeStats(zipcode);
+                                        }}
+                                    }} catch (e) {{
+                                        console.error('Error showing zipcode stats: ' + e);
+                                    }}
+                                }}
+                            }});
+                        }});
+                    }}, 1000);
+                }});
+            </script>
+        """).add_to(nyc_map.get_root())
         
         # Add a title
         title_html = f'''
