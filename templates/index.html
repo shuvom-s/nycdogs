@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NYC Dogs - Geographic Distribution</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+    <style>
+        body { 
+            padding: 20px; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .map-container { 
+            height: 600px; 
+            margin-top: 20px; 
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+        }
+        .card {
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #4a6fa5;
+            color: white;
+            font-weight: bold;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .form-select {
+            cursor: pointer;
+        }
+        .intro {
+            margin-bottom: 30px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4">NYC Dogs - Geographic Distribution</h1>
+        
+        <div class="intro">
+            <p>Welcome to the NYC Dogs Geographic Distribution viewer! This application visualizes the distribution of dog breeds and names across New York City's zip codes. Select a breed or name from the dropdown menus below to see where these dogs are most commonly found.</p>
+            <p class="text-center"><strong>Showing all breeds and names with at least {{ min_count }} dogs in NYC</strong></p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Dog Breeds</h3>
+                    </div>
+                    <div class="card-body">
+                        <select id="breed-select" class="form-select">
+                            <option value="">Select a breed</option>
+                            {% for breed, info in breeds %}
+                            <option value="{{ breed|replace('/', '_')|replace(' ', '_') }}">{{ breed }} ({{ info.total_count }} dogs)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="map-container" id="breed-map-container">
+                    <p class="text-center p-5">Select a breed to view its distribution</p>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Dog Names</h3>
+                    </div>
+                    <div class="card-body">
+                        <select id="name-select" class="form-select">
+                            <option value="">Select a name</option>
+                            {% for name, info in names %}
+                            <option value="{{ name|replace('/', '_')|replace(' ', '_') }}">{{ name }} ({{ info.total_count }} dogs)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="map-container" id="name-map-container">
+                    <p class="text-center p-5">Select a name to view its distribution</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Event listeners for selects
+        document.getElementById('breed-select').addEventListener('change', function() {
+            const breed = this.value;
+            const mapContainer = document.getElementById('breed-map-container');
+            
+            if (breed) {
+                mapContainer.innerHTML = `<iframe src="/maps/breeds/${breed}_map.html"></iframe>`;
+            } else {
+                mapContainer.innerHTML = `<p class="text-center p-5">Select a breed to view its distribution</p>`;
+            }
+        });
+        
+        document.getElementById('name-select').addEventListener('change', function() {
+            const name = this.value;
+            const mapContainer = document.getElementById('name-map-container');
+            
+            if (name) {
+                mapContainer.innerHTML = `<iframe src="/maps/names/${name}_map.html"></iframe>`;
+            } else {
+                mapContainer.innerHTML = `<p class="text-center p-5">Select a name to view its distribution</p>`;
+            }
+        });
+    </script>
+</body>
+</html> 
