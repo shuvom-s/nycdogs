@@ -1,3 +1,11 @@
 [build]
   command = "./build.sh"
-  publish = "netlify_build" 
+  publish = "netlify_build"
+
+[build.environment]
+  NODE_VERSION = "16"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200 

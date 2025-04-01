@@ -601,6 +601,360 @@ def create_web_interface():
     
     print("Created web interface in website/index.html")
 
+def create_breed_map(breed, breed_info, nyc_zipcodes):
+    """Create a choropleth map for a single dog breed by NYC zip code"""
+    safe_name = breed.replace('/', '_').replace(' ', '_')
+    print(f"Creating choropleth map for breed: {breed}")
+    
+    # Create the map centered on NYC
+    nyc_map = folium.Map(location=[40.7128, -74.0060], zoom_start=10, 
+                         tiles='CartoDB positron')
+    
+    # Create a DataFrame with zipcode and dog count
+    zipcode_counts = pd.DataFrame(list(breed_info['zipcode_counts'].items()), 
+                                  columns=['zipcode', 'count'])
+    
+    # Make sure zipcode is a string for proper join
+    zipcode_counts['zipcode'] = zipcode_counts['zipcode'].astype(str)
+    
+    # Calculate the percentage of this breed in each zipcode
+    zipcode_counts['percentage'] = zipcode_counts['count'] / zipcode_counts['count'].sum() * 100
+    
+    # Print a sample of the zipcode counts for debugging
+    print(f"Sample zipcode counts for {breed}:")
+    print(zipcode_counts.head())
+    
+    # Print the first few zipcodes to verify format
+    print(f"First few zipcodes in data: {zipcode_counts['zipcode'].head().tolist()}")
+    
+    # Create dictionaries for easy lookup - convert to string and ensure no decimal points
+    zipcode_to_count = {}
+    zipcode_to_percent = {}
+    for _, row in zipcode_counts.iterrows():
+        # Remove decimal point if it exists
+        zip_str = str(row['zipcode']).split('.')[0]
+        zipcode_to_count[zip_str] = row['count']
+        zipcode_to_percent[zip_str] = row['percentage']
+    
+    # Update the dataframe with cleaned zipcodes (no decimal points)
+    zipcode_counts['zipcode'] = zipcode_counts['zipcode'].astype(str).apply(lambda x: x.split('.')[0])
+    
+    # Ensure zip codes in GeoDataFrame are strings for proper matching
+    if nyc_zipcodes.columns.dtype != 'object':
+        nyc_zipcodes = nyc_zipcodes.astype(str)
+    
+    # Identify the zipcode field in the GeoDataFrame
+    zipcode_field = 'ZCTA'  # Default
+    if 'postalCode' in nyc_zipcodes.columns:
+        zipcode_field = 'postalCode'
+    elif 'ZCTA' in nyc_zipcodes.columns:
+        zipcode_field = 'ZCTA'
+    else:
+        # Try to find a suitable zipcode column
+        zipcode_candidates = [col for col in nyc_zipcodes.columns if any(x in col.lower() for x in ['zip', 'postal', 'zcta'])]
+        zipcode_field = zipcode_candidates[0] if zipcode_candidates else 'ZCTA'
+    
+    # Make sure all zipcodes in the geodata are strings without decimals
+    nyc_zipcodes[zipcode_field] = nyc_zipcodes[zipcode_field].astype(str)
+    nyc_zipcodes[zipcode_field] = nyc_zipcodes[zipcode_field].apply(lambda x: x.split('.')[0] if '.' in x else x)
+    
+    # Check for any matching zipcodes between the data and the GeoDataFrame
+    matching_zipcodes = set(zipcode_counts['zipcode']) & set(nyc_zipcodes[zipcode_field])
+    print(f"Number of matching zipcodes: {len(matching_zipcodes)} out of {len(zipcode_counts)} in data")
+    
+    # If there are too few matching zipcodes, we need to transform the zipcodes to match
+    if len(matching_zipcodes) < 5:
+        print(f"Warning: Very few matching zipcodes for {breed}. Attempting to fix...")
+        
+        # Try to format zipcodes differently (handles different formats like '00123' vs '123')
+        # This helps if the data has zipcode formats different from the GeoDataFrame
+        geo_zips = set(nyc_zipcodes[zipcode_field])
+        
+        # Try with and without leading zeros
+        fixed_counts = {}
+        for zip_str, count in zipcode_to_count.items():
+            # Try adding leading zeros if needed
+            if zip_str not in geo_zips and zip_str.isdigit():
+                zip_5digit = zip_str.zfill(5)
+                if zip_5digit in geo_zips:
+                    fixed_counts[zip_5digit] = count
+                    continue
+            
+            # Try removing leading zeros
+            if zip_str not in geo_zips and zip_str.startswith('0'):
+                zip_no_zero = zip_str.lstrip('0')
+                if zip_no_zero in geo_zips:
+                    fixed_counts[zip_no_zero] = count
+                    continue
+            
+            # Keep original if no matches found
+            fixed_counts[zip_str] = count
+        
+        # Recreate the zipcode_counts DataFrame with fixed zipcodes
+        fixed_zipcode_counts = pd.DataFrame(list(fixed_counts.items()), columns=['zipcode', 'count'])
+        fixed_zipcode_counts['percentage'] = fixed_zipcode_counts['count'] / fixed_zipcode_counts['count'].sum() * 100
+        
+        # Check if we have more matches now
+        fixed_matching = set(fixed_zipcode_counts['zipcode']) & set(nyc_zipcodes[zipcode_field])
+        print(f"After fixing, matching zipcodes: {len(fixed_matching)} out of {len(fixed_zipcode_counts)}")
+        
+        # Use the fixed data if we have more matches
+        if len(fixed_matching) > len(matching_zipcodes):
+            zipcode_counts = fixed_zipcode_counts
+            zipcode_to_count = fixed_counts
+            print("Using fixed zipcode format for better map matching")
+            
+    # Add the choropleth layer
+    choropleth = folium.Choropleth(
+        geo_data=nyc_zipcodes,
+        name=f'{breed} Distribution',
+        data=zipcode_counts,
+        columns=['zipcode', 'percentage'],
+        key_on='feature.properties.' + zipcode_field,
+        fill_color='YlOrRd',
+        fill_opacity=0.7,
+        line_opacity=0.2,
+        legend_name=f'Percentage of {breed} Dogs (%)',
+        highlight=True
+    ).add_to(nyc_map)
+    
+    # Create tooltip fields based on available columns
+    tooltip_fields = [zipcode_field]
+    tooltip_aliases = ['Zip Code:']
+    
+    # Add borough and neighborhood if available
+    if 'borough' in nyc_zipcodes.columns:
+        tooltip_fields.append('borough')
+        tooltip_aliases.append('Borough:')
+    if 'neighborhood' in nyc_zipcodes.columns:
+        tooltip_fields.append('neighborhood')
+        tooltip_aliases.append('Neighborhood:')
+    
+    # Add tooltips to show data on hover
+    tooltip = GeoJsonTooltip(
+        fields=tooltip_fields,
+        aliases=tooltip_aliases,
+        localize=True,
+        sticky=False,
+        labels=True,
+        style="""
+            background-color: #F0EFEF;
+            border: 2px solid black;
+            border-radius: 3px;
+            box-shadow: 3px;
+        """,
+    )
+    
+    # Add GeoJSON layer with tooltips
+    folium.GeoJson(
+        nyc_zipcodes,
+        name='NYC Zipcodes',
+        tooltip=tooltip,
+        style_function=lambda feature: {
+            'fillColor': 'transparent',
+            'color': 'black',
+            'weight': 1
+        }
+    ).add_to(nyc_map)
+    
+    # Add a title
+    title_html = f'''
+        <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index:9999; background-color: white; 
+             padding: 10px; border: 2px solid grey; border-radius: 5px;">
+            <h3 style="text-align: center; margin: 0;">{breed} Distribution in NYC</h3>
+            <p style="text-align: center; margin: 0;">Total: {breed_info['total_count']} dogs</p>
+        </div>
+    '''
+    nyc_map.get_root().html.add_child(folium.Element(title_html))
+    
+    # Add layer control
+    folium.LayerControl().add_to(nyc_map)
+    
+    # Create maps directory if it doesn't exist
+    os.makedirs('maps/breeds', exist_ok=True)
+    
+    # Save the map
+    nyc_map.save(f'maps/breeds/{safe_name}_map.html')
+    
+    print(f"Created map for {breed}")
+
+def create_name_map(name, name_info, nyc_zipcodes):
+    """Create a choropleth map for a single dog name by NYC zip code"""
+    safe_name = name.replace('/', '_').replace(' ', '_')
+    print(f"Creating choropleth map for name: {name}")
+    
+    # Create the map centered on NYC
+    nyc_map = folium.Map(location=[40.7128, -74.0060], zoom_start=10, 
+                         tiles='CartoDB positron')
+    
+    # Create a DataFrame with zipcode and dog count
+    zipcode_counts = pd.DataFrame(list(name_info['zipcode_counts'].items()), 
+                                  columns=['zipcode', 'count'])
+    
+    # Make sure zipcode is a string for proper join
+    zipcode_counts['zipcode'] = zipcode_counts['zipcode'].astype(str)
+    
+    # Calculate the percentage of this name in each zipcode
+    zipcode_counts['percentage'] = zipcode_counts['count'] / zipcode_counts['count'].sum() * 100
+    
+    # Print a sample of the zipcode counts for debugging
+    print(f"Sample zipcode counts for {name}:")
+    print(zipcode_counts.head())
+    
+    # Print the first few zipcodes to verify format
+    print(f"First few zipcodes in data: {zipcode_counts['zipcode'].head().tolist()}")
+    
+    # Create dictionaries for easy lookup - convert to string and ensure no decimal points
+    zipcode_to_count = {}
+    zipcode_to_percent = {}
+    for _, row in zipcode_counts.iterrows():
+        # Remove decimal point if it exists
+        zip_str = str(row['zipcode']).split('.')[0]
+        zipcode_to_count[zip_str] = row['count']
+        zipcode_to_percent[zip_str] = row['percentage']
+    
+    # Update the dataframe with cleaned zipcodes (no decimal points)
+    zipcode_counts['zipcode'] = zipcode_counts['zipcode'].astype(str).apply(lambda x: x.split('.')[0])
+    
+    # Ensure zip codes in GeoDataFrame are strings for proper matching
+    if nyc_zipcodes.columns.dtype != 'object':
+        nyc_zipcodes = nyc_zipcodes.astype(str)
+    
+    # Identify the zipcode field in the GeoDataFrame
+    zipcode_field = 'ZCTA'  # Default
+    if 'postalCode' in nyc_zipcodes.columns:
+        zipcode_field = 'postalCode'
+    elif 'ZCTA' in nyc_zipcodes.columns:
+        zipcode_field = 'ZCTA'
+    else:
+        # Try to find a suitable zipcode column
+        zipcode_candidates = [col for col in nyc_zipcodes.columns if any(x in col.lower() for x in ['zip', 'postal', 'zcta'])]
+        zipcode_field = zipcode_candidates[0] if zipcode_candidates else 'ZCTA'
+    
+    # Make sure all zipcodes in the geodata are strings without decimals
+    nyc_zipcodes[zipcode_field] = nyc_zipcodes[zipcode_field].astype(str)
+    nyc_zipcodes[zipcode_field] = nyc_zipcodes[zipcode_field].apply(lambda x: x.split('.')[0] if '.' in x else x)
+    
+    # Check for any matching zipcodes between the data and the GeoDataFrame
+    matching_zipcodes = set(zipcode_counts['zipcode']) & set(nyc_zipcodes[zipcode_field])
+    print(f"Number of matching zipcodes: {len(matching_zipcodes)} out of {len(zipcode_counts)} in data")
+    
+    # If there are too few matching zipcodes, we need to transform the zipcodes to match
+    if len(matching_zipcodes) < 5:
+        print(f"Warning: Very few matching zipcodes for {name}. Attempting to fix...")
+        
+        # Try to format zipcodes differently (handles different formats like '00123' vs '123')
+        # This helps if the data has zipcode formats different from the GeoDataFrame
+        geo_zips = set(nyc_zipcodes[zipcode_field])
+        
+        # Try with and without leading zeros
+        fixed_counts = {}
+        for zip_str, count in zipcode_to_count.items():
+            # Try adding leading zeros if needed
+            if zip_str not in geo_zips and zip_str.isdigit():
+                zip_5digit = zip_str.zfill(5)
+                if zip_5digit in geo_zips:
+                    fixed_counts[zip_5digit] = count
+                    continue
+            
+            # Try removing leading zeros
+            if zip_str not in geo_zips and zip_str.startswith('0'):
+                zip_no_zero = zip_str.lstrip('0')
+                if zip_no_zero in geo_zips:
+                    fixed_counts[zip_no_zero] = count
+                    continue
+            
+            # Keep original if no matches found
+            fixed_counts[zip_str] = count
+        
+        # Recreate the zipcode_counts DataFrame with fixed zipcodes
+        fixed_zipcode_counts = pd.DataFrame(list(fixed_counts.items()), columns=['zipcode', 'count'])
+        fixed_zipcode_counts['percentage'] = fixed_zipcode_counts['count'] / fixed_zipcode_counts['count'].sum() * 100
+        
+        # Check if we have more matches now
+        fixed_matching = set(fixed_zipcode_counts['zipcode']) & set(nyc_zipcodes[zipcode_field])
+        print(f"After fixing, matching zipcodes: {len(fixed_matching)} out of {len(fixed_zipcode_counts)}")
+        
+        # Use the fixed data if we have more matches
+        if len(fixed_matching) > len(matching_zipcodes):
+            zipcode_counts = fixed_zipcode_counts
+            zipcode_to_count = fixed_counts
+            print("Using fixed zipcode format for better map matching")
+        
+    # Add the choropleth layer
+    choropleth = folium.Choropleth(
+        geo_data=nyc_zipcodes,
+        name=f'{name} Distribution',
+        data=zipcode_counts,
+        columns=['zipcode', 'percentage'],
+        key_on='feature.properties.' + zipcode_field,
+        fill_color='YlOrRd',
+        fill_opacity=0.7,
+        line_opacity=0.2,
+        legend_name=f'Percentage of Dogs Named {name} (%)',
+        highlight=True
+    ).add_to(nyc_map)
+    
+    # Create tooltip fields based on available columns
+    tooltip_fields = [zipcode_field]
+    tooltip_aliases = ['Zip Code:']
+    
+    # Add borough and neighborhood if available
+    if 'borough' in nyc_zipcodes.columns:
+        tooltip_fields.append('borough')
+        tooltip_aliases.append('Borough:')
+    if 'neighborhood' in nyc_zipcodes.columns:
+        tooltip_fields.append('neighborhood')
+        tooltip_aliases.append('Neighborhood:')
+    
+    # Add tooltips to show data on hover
+    tooltip = GeoJsonTooltip(
+        fields=tooltip_fields,
+        aliases=tooltip_aliases,
+        localize=True,
+        sticky=False,
+        labels=True,
+        style="""
+            background-color: #F0EFEF;
+            border: 2px solid black;
+            border-radius: 3px;
+            box-shadow: 3px;
+        """,
+    )
+    
+    # Add GeoJSON layer with tooltips
+    folium.GeoJson(
+        nyc_zipcodes,
+        name='NYC Zipcodes',
+        tooltip=tooltip,
+        style_function=lambda feature: {
+            'fillColor': 'transparent',
+            'color': 'black',
+            'weight': 1
+        }
+    ).add_to(nyc_map)
+    
+    # Add a title
+    title_html = f'''
+        <div style="position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index:9999; background-color: white; 
+             padding: 10px; border: 2px solid grey; border-radius: 5px;">
+            <h3 style="text-align: center; margin: 0;">Dogs Named {name} in NYC</h3>
+            <p style="text-align: center; margin: 0;">Total: {name_info['total_count']} dogs</p>
+        </div>
+    '''
+    nyc_map.get_root().html.add_child(folium.Element(title_html))
+    
+    # Add layer control
+    folium.LayerControl().add_to(nyc_map)
+    
+    # Create maps directory if it doesn't exist
+    os.makedirs('maps/names', exist_ok=True)
+    
+    # Save the map
+    nyc_map.save(f'maps/names/{safe_name}_map.html')
+    
+    print(f"Created map for {name}")
+
 if __name__ == "__main__":
     # Create maps
     create_breed_choropleth_maps()

@@ -1,120 +1,26 @@
 #!/bin/bash
 set -e  # Exit immediately if a command exits with a non-zero status
 
-echo "Starting Netlify build process"
+echo "Starting Netlify build process..."
 
 # Create netlify_build directory
 mkdir -p netlify_build
-echo "Created netlify_build directory"
 
-# Create a simple HTML file
-cat > netlify_build/index.html << 'EOF'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NYC Dogs - Geographic Distribution</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
-    <style>
-        body { 
-            padding: 20px; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 800px;
-        }
-        h1 {
-            color: #2c3e50;
-            margin-bottom: 30px;
-        }
-        .card {
-            margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        .card-header {
-            background-color: #4a6fa5;
-            color: white;
-            font-weight: bold;
-        }
-        .btn-primary {
-            background-color: #4a6fa5;
-            border-color: #4a6fa5;
-        }
-        .btn-primary:hover {
-            background-color: #385d8a;
-            border-color: #385d8a;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1 class="text-center mb-4">NYC Dogs - Geographic Distribution</h1>
-        
-        <div class="alert alert-info" role="alert">
-            <h4 class="alert-heading">Application Deployed Successfully!</h4>
-            <p>This is a placeholder page for the NYC Dogs Geographic Distribution application. 
-               The full interactive version requires the complete dataset to be processed locally.</p>
-        </div>
-        
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3>About This Project</h3>
-            </div>
-            <div class="card-body">
-                <p>This project visualizes the geographic distribution of dog breeds and names across NYC zip codes based on the nycdogs.csv dataset.</p>
-                <p>The application creates choropleth maps showing where different dog breeds and names are most popular across New York City neighborhoods.</p>
-            </div>
-        </div>
-        
-        <div class="card mb-4">
-            <div class="card-header">
-                <h3>How to Run Locally</h3>
-            </div>
-            <div class="card-body">
-                <p>To run the full interactive version:</p>
-                <ol>
-                    <li>Clone the repository: <code>git clone https://github.com/shuvom-s/nycdogs.git</code></li>
-                    <li>Install dependencies: <code>pip install -r requirements.txt</code></li>
-                    <li>Make sure the nycdogs.csv and ZCTA.gpkg files are in the root directory</li>
-                    <li>Run the Flask app: <code>python app.py</code></li>
-                    <li>Open your browser to <code>http://localhost:5000</code></li>
-                </ol>
-            </div>
-        </div>
-        
-        <div class="card">
-            <div class="card-header">
-                <h3>Features</h3>
-            </div>
-            <div class="card-body">
-                <ul>
-                    <li>Visualize distribution of dog breeds across NYC</li>
-                    <li>Visualize distribution of dog names across NYC</li>
-                    <li>Filter for breeds and names with at least 500 dogs</li>
-                    <li>Interactive choropleth maps with tooltips</li>
-                </ul>
-            </div>
-        </div>
-        
-        <div class="text-center mt-4">
-            <a href="https://github.com/shuvom-s/nycdogs" class="btn btn-primary btn-lg">View on GitHub</a>
-        </div>
-    </div>
-</body>
-</html>
-EOF
+# Install Python dependencies
+pip install -r requirements.txt
 
-echo "Created index.html file"
+# Generate the maps for Netlify
+echo "Generating maps for Netlify..."
+python generate_netlify_maps.py
 
-# Verify the file was created
+# Verify that the index.html file was created
 if [ -f "netlify_build/index.html" ]; then
-  echo "Verified: index.html exists in netlify_build directory"
-  ls -la netlify_build/
+    echo "Created index.html file successfully!"
+    echo "Contents of netlify_build directory:"
+    ls -la netlify_build/
 else
-  echo "ERROR: Failed to create index.html in netlify_build directory"
-  exit 1
+    echo "ERROR: Failed to create index.html file"
+    exit 1
 fi
 
-echo "Static site built successfully!" 
+echo "Build process completed successfully!" 
