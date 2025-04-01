@@ -1,7 +1,11 @@
 #!/bin/bash
+set -e  # Exit immediately if a command exits with a non-zero status
+
+echo "Starting Netlify build process"
 
 # Create netlify_build directory
 mkdir -p netlify_build
+echo "Created netlify_build directory"
 
 # Create a simple HTML file
 cat > netlify_build/index.html << 'EOF'
@@ -71,7 +75,7 @@ cat > netlify_build/index.html << 'EOF'
             <div class="card-body">
                 <p>To run the full interactive version:</p>
                 <ol>
-                    <li>Clone the repository: <code>git clone https://github.com/shuvom/nyc-dogs-map.git</code></li>
+                    <li>Clone the repository: <code>git clone https://github.com/shuvom-s/nycdogs.git</code></li>
                     <li>Install dependencies: <code>pip install -r requirements.txt</code></li>
                     <li>Make sure the nycdogs.csv and ZCTA.gpkg files are in the root directory</li>
                     <li>Run the Flask app: <code>python app.py</code></li>
@@ -95,11 +99,22 @@ cat > netlify_build/index.html << 'EOF'
         </div>
         
         <div class="text-center mt-4">
-            <a href="https://github.com/shuvom/nyc-dogs-map" class="btn btn-primary btn-lg">View on GitHub</a>
+            <a href="https://github.com/shuvom-s/nycdogs" class="btn btn-primary btn-lg">View on GitHub</a>
         </div>
     </div>
 </body>
 </html>
 EOF
+
+echo "Created index.html file"
+
+# Verify the file was created
+if [ -f "netlify_build/index.html" ]; then
+  echo "Verified: index.html exists in netlify_build directory"
+  ls -la netlify_build/
+else
+  echo "ERROR: Failed to create index.html in netlify_build directory"
+  exit 1
+fi
 
 echo "Static site built successfully!" 
