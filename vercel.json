@@ -1,17 +1,9 @@
 {
   "version": 2,
   "builds": [
-    {
-      "src": "vercel_build.py",
-      "use": "@vercel/python",
-      "config": {
-        "maxLambdaSize": "15mb"
-      }
-    }
+    { "src": "index.html", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/$1" }
-  ],
-  "buildCommand": "python vercel_build.py",
-  "outputDirectory": "."
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 } 
