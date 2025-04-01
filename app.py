@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, send_from_directory
+from flask import Flask, render_template, redirect, url_for, send_from_directory, jsonify
 import os
 import json
 from run import main as run_preprocessing
@@ -46,6 +46,40 @@ def process():
 def show_map(map_type, map_name):
     """Display a specific map"""
     return send_from_directory(f'maps/{map_type}', map_name)
+
+@app.route('/api/zipcode/<zipcode>')
+def get_zipcode_stats(zipcode):
+    """Get statistics for a specific zipcode"""
+    if not os.path.exists('data/zipcode_stats.json'):
+        return jsonify({"error": "Zipcode statistics not available"}), 404
+    
+    with open('data/zipcode_stats.json', 'r') as f:
+        zipcode_stats = json.load(f)
+    
+    if zipcode in zipcode_stats:
+        return jsonify(zipcode_stats[zipcode])
+    else:
+        return jsonify({"error": "Zipcode not found"}), 404
+
+@app.route('/api/zipcodes')
+def get_all_zipcodes():
+    """Get a list of all available zipcodes with statistics"""
+    if not os.path.exists('data/zipcode_stats.json'):
+        return jsonify({"error": "Zipcode statistics not available"}), 404
+    
+    with open('data/zipcode_stats.json', 'r') as f:
+        zipcode_stats = json.load(f)
+    
+    # Return a simplified list with just zipcode and dog count
+    simplified_stats = {
+        zipcode: {
+            "total_dogs": stats["total_dogs"], 
+            "has_data": len(stats.get("top_breeds", [])) > 0 or len(stats.get("top_names", [])) > 0
+        } 
+        for zipcode, stats in zipcode_stats.items()
+    }
+    
+    return jsonify(simplified_stats)
 
 @app.route('/static/<path:filename>')
 def serve_static(filename):

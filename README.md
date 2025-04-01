@@ -9,6 +9,7 @@ Interactive visualization of NYC dog breeds and names by zip code, showing the g
 - Interactive selection of breeds and names
 - Tooltips showing details on hover
 - Filtering for dogs with at least 500 occurrences in the dataset
+- **NEW:** Zipcode-specific analysis showing the most overrepresented breeds and names in each area
 
 ## Data Source
 
@@ -21,6 +22,14 @@ The visualization uses:
 - GeoPandas for working with geospatial data
 - Folium (based on Leaflet.js) for interactive maps
 - Bootstrap for the user interface
+
+### Statistical Analysis
+
+The app calculates how "overrepresented" a breed or name is in each zipcode by comparing:
+- The percentage of that breed/name in the zipcode
+- The percentage of that breed/name in NYC overall
+
+A representation score of 2.0x means that a breed is twice as common in that zipcode compared to NYC as a whole. This helps identify which dog breeds and names are particularly popular in specific neighborhoods.
 
 ## Running Locally
 
@@ -89,6 +98,7 @@ The interface allows you to:
 1. Select dog breeds to see their distribution across NYC zip codes
 2. Select dog names to see their distribution across NYC zip codes
 3. View detailed statistics when hovering over each zip code
+4. Click on any zip code to see the most overrepresented breeds and names in that area
 
 ## Live Demo
 

@@ -83,6 +83,12 @@ def create_breed_choropleth_maps():
     with open('data/popular_breeds.json', 'r') as f:
         breed_data = json.load(f)
     
+    # Check if zipcode stats exist
+    zipcode_stats = {}
+    if os.path.exists('data/zipcode_stats.json'):
+        with open('data/zipcode_stats.json', 'r') as f:
+            zipcode_stats = json.load(f)
+    
     # Filter for breeds with at least 500 dogs
     filtered_breeds = {breed: info for breed, info in breed_data.items() if info['total_count'] >= 500}
     print(f"Found {len(filtered_breeds)} breeds with at least 500 dogs")
@@ -245,8 +251,90 @@ def create_breed_choropleth_maps():
             """,
         )
         
-        # Add GeoJSON layer with tooltips
-        folium.GeoJson(
+        # Generate JavaScript code for zipcode click handling
+        zipcode_click_js = """
+        function onEachFeature(feature, layer) {
+            var zipcode = feature.properties.%s;
+            layer.on({
+                click: function(e) {
+                    showZipcodeStats(zipcode);
+                }
+            });
+        }
+        
+        function showZipcodeStats(zipcode) {
+            // Create modal content for zipcode statistics
+            var modalContent = document.getElementById('zipcodeModalContent');
+            modalContent.innerHTML = '<div class="text-center"><h4>Loading data for ZIP Code ' + zipcode + '...</h4><div class="spinner-border" role="status"></div></div>';
+            
+            // Show the modal
+            var zipcodeModal = new bootstrap.Modal(document.getElementById('zipcodeModal'));
+            zipcodeModal.show();
+            
+            // Fetch zipcode statistics
+            fetch('/api/zipcode/' + zipcode)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        modalContent.innerHTML = '<div class="alert alert-warning">No detailed data available for this ZIP code.</div>';
+                        return;
+                    }
+                    
+                    // Create content for the modal
+                    var content = '<h4 class="mb-3">ZIP Code ' + zipcode + '</h4>';
+                    content += '<p><strong>Total Dogs:</strong> ' + data.total_dogs + '</p>';
+                    
+                    // Show top breeds
+                    if (data.top_breeds && data.top_breeds.length > 0) {
+                        content += '<h5 class="mt-4">Most Overrepresented Breeds</h5>';
+                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
+                        content += '<thead><tr><th>Breed</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
+                        content += '<tbody>';
+                        
+                        data.top_breeds.forEach(function(breed) {
+                            content += '<tr>';
+                            content += '<td>' + breed.breed + '</td>';
+                            content += '<td>' + breed.count + '</td>';
+                            content += '<td>' + (breed.percentage * 100).toFixed(1) + '%</td>';
+                            content += '<td>' + breed.representation.toFixed(1) + 'x</td>';
+                            content += '</tr>';
+                        });
+                        
+                        content += '</tbody></table></div>';
+                    }
+                    
+                    // Show top names
+                    if (data.top_names && data.top_names.length > 0) {
+                        content += '<h5 class="mt-4">Most Overrepresented Names</h5>';
+                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
+                        content += '<thead><tr><th>Name</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
+                        content += '<tbody>';
+                        
+                        data.top_names.forEach(function(name) {
+                            content += '<tr>';
+                            content += '<td>' + name.name + '</td>';
+                            content += '<td>' + name.count + '</td>';
+                            content += '<td>' + (name.percentage * 100).toFixed(1) + '%</td>';
+                            content += '<td>' + name.representation.toFixed(1) + 'x</td>';
+                            content += '</tr>';
+                        });
+                        
+                        content += '</tbody></table></div>';
+                    }
+                    
+                    modalContent.innerHTML = content;
+                })
+                .catch(error => {
+                    modalContent.innerHTML = '<div class="alert alert-danger">Error loading data: ' + error.message + '</div>';
+                });
+        }
+        """ % zipcode_field
+        
+        # Add the JavaScript code to the map
+        nyc_map.get_root().script.add_child(folium.Element(zipcode_click_js))
+        
+        # Add GeoJSON layer with tooltips and click events
+        geojson = folium.GeoJson(
             nyc_zipcodes,
             name='NYC Zipcodes',
             tooltip=tooltip,
@@ -254,7 +342,9 @@ def create_breed_choropleth_maps():
                 'fillColor': 'transparent',
                 'color': 'black',
                 'weight': 1
-            }
+            },
+            # Add the click handler function
+            onEachFeature="""onEachFeature"""
         ).add_to(nyc_map)
         
         # Add a title
@@ -266,6 +356,33 @@ def create_breed_choropleth_maps():
             </div>
         '''
         nyc_map.get_root().html.add_child(folium.Element(title_html))
+        
+        # Add modal structure for zipcode statistics
+        modal_html = '''
+        <div class="modal fade" id="zipcodeModal" tabindex="-1" aria-labelledby="zipcodeModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="zipcodeModalLabel">ZIP Code Dog Statistics</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="zipcodeModalContent">
+                        <!-- Content will be loaded dynamically -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        '''
+        nyc_map.get_root().html.add_child(folium.Element(modal_html))
+        
+        # Add Bootstrap JS for modal functionality
+        bootstrap_js = '''
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        '''
+        nyc_map.get_root().html.add_child(folium.Element(bootstrap_js))
         
         # Add layer control
         folium.LayerControl().add_to(nyc_map)
@@ -280,6 +397,12 @@ def create_name_choropleth_maps():
     # Load name data
     with open('data/popular_names.json', 'r') as f:
         name_data = json.load(f)
+    
+    # Check if zipcode stats exist
+    zipcode_stats = {}
+    if os.path.exists('data/zipcode_stats.json'):
+        with open('data/zipcode_stats.json', 'r') as f:
+            zipcode_stats = json.load(f)
     
     # Filter for names with at least 500 dogs
     filtered_names = {name: info for name, info in name_data.items() if info['total_count'] >= 500}
@@ -443,8 +566,90 @@ def create_name_choropleth_maps():
             """,
         )
         
-        # Add GeoJSON layer with tooltips
-        folium.GeoJson(
+        # Generate JavaScript code for zipcode click handling
+        zipcode_click_js = """
+        function onEachFeature(feature, layer) {
+            var zipcode = feature.properties.%s;
+            layer.on({
+                click: function(e) {
+                    showZipcodeStats(zipcode);
+                }
+            });
+        }
+        
+        function showZipcodeStats(zipcode) {
+            // Create modal content for zipcode statistics
+            var modalContent = document.getElementById('zipcodeModalContent');
+            modalContent.innerHTML = '<div class="text-center"><h4>Loading data for ZIP Code ' + zipcode + '...</h4><div class="spinner-border" role="status"></div></div>';
+            
+            // Show the modal
+            var zipcodeModal = new bootstrap.Modal(document.getElementById('zipcodeModal'));
+            zipcodeModal.show();
+            
+            // Fetch zipcode statistics
+            fetch('/api/zipcode/' + zipcode)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        modalContent.innerHTML = '<div class="alert alert-warning">No detailed data available for this ZIP code.</div>';
+                        return;
+                    }
+                    
+                    // Create content for the modal
+                    var content = '<h4 class="mb-3">ZIP Code ' + zipcode + '</h4>';
+                    content += '<p><strong>Total Dogs:</strong> ' + data.total_dogs + '</p>';
+                    
+                    // Show top breeds
+                    if (data.top_breeds && data.top_breeds.length > 0) {
+                        content += '<h5 class="mt-4">Most Overrepresented Breeds</h5>';
+                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
+                        content += '<thead><tr><th>Breed</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
+                        content += '<tbody>';
+                        
+                        data.top_breeds.forEach(function(breed) {
+                            content += '<tr>';
+                            content += '<td>' + breed.breed + '</td>';
+                            content += '<td>' + breed.count + '</td>';
+                            content += '<td>' + (breed.percentage * 100).toFixed(1) + '%</td>';
+                            content += '<td>' + breed.representation.toFixed(1) + 'x</td>';
+                            content += '</tr>';
+                        });
+                        
+                        content += '</tbody></table></div>';
+                    }
+                    
+                    // Show top names
+                    if (data.top_names && data.top_names.length > 0) {
+                        content += '<h5 class="mt-4">Most Overrepresented Names</h5>';
+                        content += '<div class="table-responsive"><table class="table table-striped table-sm">';
+                        content += '<thead><tr><th>Name</th><th>Count</th><th>% in ZIP</th><th>Representation</th></tr></thead>';
+                        content += '<tbody>';
+                        
+                        data.top_names.forEach(function(name) {
+                            content += '<tr>';
+                            content += '<td>' + name.name + '</td>';
+                            content += '<td>' + name.count + '</td>';
+                            content += '<td>' + (name.percentage * 100).toFixed(1) + '%</td>';
+                            content += '<td>' + name.representation.toFixed(1) + 'x</td>';
+                            content += '</tr>';
+                        });
+                        
+                        content += '</tbody></table></div>';
+                    }
+                    
+                    modalContent.innerHTML = content;
+                })
+                .catch(error => {
+                    modalContent.innerHTML = '<div class="alert alert-danger">Error loading data: ' + error.message + '</div>';
+                });
+        }
+        """ % zipcode_field
+        
+        # Add the JavaScript code to the map
+        nyc_map.get_root().script.add_child(folium.Element(zipcode_click_js))
+        
+        # Add GeoJSON layer with tooltips and click events
+        geojson = folium.GeoJson(
             nyc_zipcodes,
             name='NYC Zipcodes',
             tooltip=tooltip,
@@ -452,7 +657,9 @@ def create_name_choropleth_maps():
                 'fillColor': 'transparent',
                 'color': 'black',
                 'weight': 1
-            }
+            },
+            # Add the click handler function
+            onEachFeature="""onEachFeature"""
         ).add_to(nyc_map)
         
         # Add a title
@@ -464,6 +671,33 @@ def create_name_choropleth_maps():
             </div>
         '''
         nyc_map.get_root().html.add_child(folium.Element(title_html))
+        
+        # Add modal structure for zipcode statistics
+        modal_html = '''
+        <div class="modal fade" id="zipcodeModal" tabindex="-1" aria-labelledby="zipcodeModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="zipcodeModalLabel">ZIP Code Dog Statistics</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="zipcodeModalContent">
+                        <!-- Content will be loaded dynamically -->
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        '''
+        nyc_map.get_root().html.add_child(folium.Element(modal_html))
+        
+        # Add Bootstrap JS for modal functionality
+        bootstrap_js = '''
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        '''
+        nyc_map.get_root().html.add_child(folium.Element(bootstrap_js))
         
         # Add layer control
         folium.LayerControl().add_to(nyc_map)
